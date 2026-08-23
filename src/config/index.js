@@ -14,15 +14,7 @@ const config = {
     password: process.env.REDIS_PASSWORD,
   },
 
-  jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  },
-  bcrypt: {
-    rounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
-  },
+  adminSecret: process.env.ADMIN_SECRET,
 
   rateLimiting: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
@@ -37,7 +29,7 @@ const config = {
   }
 };
 
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+const requiredEnvVars = ['DATABASE_URL', 'ADMIN_SECRET'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     throw new Error(`Missing required environment variable: ${envVar}`);

@@ -9,6 +9,16 @@ Prisma/Redis style rules already live in the global CLAUDE.md — this file
 does not repeat them, it extends them where this project differs or adds
 constraints of its own.
 
+## Engineering standard
+
+Build and review every change the way a 10-year senior SDE and system
+architect would — this is meant to be a portfolio-quality open-source
+project, not a prototype. In practice: think through scale and failure
+modes before writing the happy path, prefer the boring proven approach
+over the clever one, don't ship a half-finished endpoint or an unindexed
+query "for now," and hold your own code to the same bar you'd hold a
+teammate's PR to.
+
 ## Non-negotiable context
 
 - Global CLAUDE.md conventions apply (exports, controller pattern, ESLint,
@@ -37,11 +47,17 @@ constraints of its own.
   ingestion request: git correlation, LLM analysis, webhook delivery.
 - **Git correlation**: Octokit
 - **LLM**: pluggable provider interface, config-driven
-- **Alert delivery**: generic `webhookUrl` per project — provider-agnostic.
-  Do not hardcode "Slack" anywhere in the schema or service layer; a project
-  may point its webhook at Slack, Teams, Discord, or any custom receiver.
-  Payload formatting for a specific provider is a delivery-service concern,
-  not a schema concern.
+- **Alert delivery**: `webhookUrl` + `webhookProvider` per project.
+  `webhookProvider` is an explicit enum (`EWebhookProvider` /
+  Prisma `WebhookProvider`: `SLACK`, `TEAMS`, `DISCORD`, `CUSTOM`) set at
+  project-creation time — not auto-detected from the URL's hostname, which
+  breaks the moment someone proxies their webhook through a custom domain.
+  The two fields travel together: `webhookUrl` set without
+  `webhookProvider` (or vice versa) is a validation error, enforced in
+  `createProjectSchema`. Payload *formatting* per provider (Slack blocks vs.
+  Discord embeds vs. Teams Adaptive Cards) is still a delivery-service
+  concern, not a schema concern — the enum only says which formatter to
+  use, it doesn't encode the payload shape itself.
 
 ## Two auth chains — do not conflate them
 
@@ -54,8 +70,13 @@ middleware:
    subsequent query in that request is scoped to that project's id. Use
    `authenticateApiKey` middleware for this chain.
 2. **Control plane (human/admin)** — creating projects, listing/resolving
-   errors, rotating API keys. Authenticated by JWT, via the standard
-   `authenticate` middleware from global conventions.
+   errors, rotating API keys. There is no user/login system in this
+   project — self-hosted, single-tenant, one instance per company — so
+   this is **not** JWT. It's a single shared secret (`ADMIN_SECRET` env
+   var) checked against the `x-admin-secret` header, via the
+   `authenticateAdmin` middleware. No `jsonwebtoken`/`bcryptjs` deps in
+   this project for the same reason — don't reintroduce them for a login
+   flow nobody asked for.
 
 Never let an ingestion request touch data outside its resolved `projectId`.
 Never let the control plane skip auth because "it's just an internal call."
@@ -93,7 +114,12 @@ projects, from day one. This shapes the design, not just the query tuning:
   timestamps. The scoping root for everything else.
 - `ApiKey` — belongs to a `Project`. Support multiple keys per project
   (rotation without downtime) unless told otherwise; store a hash, never
-  the raw key, after creation.
+  the raw key, after creation. Hash with SHA-256 (`shared/utils/apiKey.js`),
+  **not bcrypt** — bcrypt's random salt makes it impossible to look up a
+  key by hash with a unique index, and the ingestion hot path needs an
+  O(1) lookup on every request. Bcrypt is for low-entropy human passwords;
+  an API key is already a high-entropy random secret, so a fast
+  deterministic hash is the correct tool, not a weaker one.
 - `ErrorEvent` (or equivalent) — always carries `projectId`, a fingerprint,
   an occurrence count, and lifecycle state (new / resolved / ignored).
 - `meta` module — small, unauthenticated `GET /api/v1/meta` endpoint

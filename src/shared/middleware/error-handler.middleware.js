@@ -2,8 +2,8 @@ import logger from '../utils/logger.js';
 import { errorObject, responseMessage } from '../utils/response.js';
 
 const errorHandler = (err, req, res, _next) => {
-  let statusCode = 500;
-  let message = responseMessage.ERROR.SOMETHING_WENT_WRONG;
+  let statusCode = err.statusCode || 500;
+  let message = err.message || responseMessage.ERROR.SOMETHING_WENT_WRONG;
 
   logger.error(`Error ${req.method} ${req.originalUrl}`, {
     error: err.message,
@@ -11,46 +11,20 @@ const errorHandler = (err, req, res, _next) => {
     requestId: req.requestId,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    userId: req.user?.id,
     body: req.body,
     params: req.params,
     query: req.query,
   });
 
-  if (err.name === 'CastError') {
-    statusCode = 404;
-    message = responseMessage.ERROR.NOT_FOUND;
-  } else if (err.code === 11000) {
-    statusCode = 400;
-    message = 'Duplicate field value entered';
-  } else if (err.name === 'ValidationError') {
-    statusCode = 400;
-    message = Object.values(err.errors)
-      .map((val) => val.message)
-      .join(', ');
-  } else if (err.code === 'P2002') {
+  if (err.code === 'P2002') {
     statusCode = 400;
     message = 'Duplicate field value entered';
   } else if (err.code === 'P2025') {
     statusCode = 404;
     message = responseMessage.ERROR.NOT_FOUND;
-  } else if (err.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = responseMessage.ERROR.UNAUTHORIZED;
-  } else if (err.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = 'Token expired';
-  } else if (err.name === 'ValidationError' || err.isJoi) {
-    statusCode = 400;
-    message = err.details ? err.details[0].message : err.message;
-  } else if (err.message === 'Too many requests') {
-    statusCode = 429;
-    message = responseMessage.ERROR.TOO_MANY_REQUESTS;
   } else if (err.message === 'Not allowed by CORS') {
     statusCode = 403;
     message = responseMessage.ERROR.FORBIDDEN;
-  } else if (err.message) {
-    message = err.message;
   }
 
   const errorObj = errorObject(err, req, statusCode);

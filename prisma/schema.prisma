@@ -6,3 +6,44 @@ datasource db {
   provider = "postgresql"
 }
 
+enum WebhookProvider {
+  SLACK
+  TEAMS
+  DISCORD
+  CUSTOM
+}
+
+model Project {
+  id              String           @id @default(cuid())
+  name            String
+  webhookUrl      String?
+  webhookProvider WebhookProvider?
+  githubOwner     String?
+  githubRepo      String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  apiKeys ApiKey[]
+
+  @@index([isActive])
+  @@map("projects")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  projectId  String
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, isActive])
+  @@map("api_keys")
+}
+
