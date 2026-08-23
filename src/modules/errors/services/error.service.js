@@ -14,6 +14,7 @@ const ERROR_EVENT_SELECT = {
   lineNumber: true,
   codeSnippet: true,
   environment: true,
+  aiAnalysis: true,
   occurrenceCount: true,
   status: true,
   firstSeenAt: true,

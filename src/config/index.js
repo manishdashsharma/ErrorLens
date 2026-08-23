@@ -26,9 +26,10 @@ const config = {
   github: {
     token: process.env.GITHUB_TOKEN,
   },
-  llm: {
-    provider: process.env.LLM_PROVIDER,
-    apiKey: process.env.LLM_API_KEY,
+  ai: {
+    apiKey: process.env.AI_API_KEY,
+    baseUrl: process.env.AI_BASE_URL || 'https://api.groq.com/openai/v1',
+    model: process.env.AI_MODEL || 'openai/gpt-oss-120b',
   },
 
   rateLimiting: {

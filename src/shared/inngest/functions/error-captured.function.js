@@ -1,8 +1,9 @@
 import { inngest } from '../../../config/inngest.js';
 import config from '../../../config/index.js';
 import logger from '../../utils/logger.js';
-import { getReadDB } from '../../../config/databases.js';
+import { getReadDB, getWriteDB } from '../../../config/databases.js';
 import { formatWebhookPayload } from '../../utils/webhook-formatter.js';
+import { analyzeError } from '../../ai/index.js';
 
 const ERROR_EVENT_SELECT = {
   id: true,
@@ -47,15 +48,27 @@ const errorCaptured = inngest.createFunction(
       return { skipped: true };
     }
 
-    if (config.github.token && project.githubOwner && project.githubRepo) {
-      await step.run('git-correlation', async () => {
-        logger.info('Git correlation not yet implemented, skipping', { projectId });
+    let aiAnalysis = null;
+
+    if (config.ai.apiKey) {
+      aiAnalysis = await step.run('llm-analysis', async () => {
+        const analysis = await analyzeError(errorEvent);
+
+        if (analysis) {
+          const db = getWriteDB();
+          await db.errorEvent.update({
+            where: { id: errorEvent.id },
+            data: { aiAnalysis: analysis },
+          });
+        }
+
+        return analysis;
       });
     }
 
-    if (config.llm.provider) {
-      await step.run('llm-analysis', async () => {
-        logger.info('LLM analysis not yet implemented, skipping', { projectId });
+    if (config.github.token && project.githubOwner && project.githubRepo) {
+      await step.run('git-correlation', async () => {
+        logger.info('Git correlation not yet implemented, skipping', { projectId });
       });
     }
 
@@ -63,7 +76,8 @@ const errorCaptured = inngest.createFunction(
 
     if (project.webhookUrl && project.webhookProvider) {
       delivered = await step.run('deliver-webhook', async () => {
-        const payload = formatWebhookPayload(project.webhookProvider, errorEvent, project);
+        const enrichedErrorEvent = { ...errorEvent, aiAnalysis };
+        const payload = formatWebhookPayload(project.webhookProvider, enrichedErrorEvent, project);
         const response = await fetch(project.webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -78,7 +92,7 @@ const errorCaptured = inngest.createFunction(
       });
     }
 
-    return { delivered };
+    return { delivered, analyzed: Boolean(aiAnalysis) };
   }
 );
 

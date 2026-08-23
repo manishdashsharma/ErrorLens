@@ -54,7 +54,21 @@ teammate's PR to.
   Express app serves them at `/api/inngest` via `inngest/express`'s
   `serve()`.
 - **Git correlation**: Octokit
-- **LLM**: pluggable provider interface, config-driven
+- **LLM**: OpenAI-compatible client (`openai` npm package), pointed at
+  Groq by default (`AI_BASE_URL=https://api.groq.com/openai/v1`,
+  `AI_MODEL=openai/gpt-oss-120b`). Swapping providers is an env-var
+  change, not a code change — any OpenAI-compatible endpoint works.
+  Client lives in `src/config/ai.js` (connection/config concern, same
+  category as `databases.js`/`redis.js`/`inngest.js`), but **must stay
+  lazily constructed** (`getAiClient()`, not a top-level `new OpenAI()`)
+  — the SDK throws at construction time if `apiKey` is falsy, and this
+  module gets imported even when no key is configured. The prompt and the
+  actual analysis call live in `src/shared/ai/` (`llm.js` +
+  `prompts/error-analysis.prompt.js`) — this is business logic, not
+  config, hence the split between the two directories. Analysis result is
+  persisted to `ErrorEvent.aiAnalysis` and folded into the webhook payload
+  when present. Gated entirely on `config.ai.apiKey` being set — no key
+  means the step is skipped, not attempted-and-failed.
 - **Alert delivery**: `webhookUrl` + `webhookProvider` per project.
   `webhookProvider` is an explicit enum (`EWebhookProvider` /
   Prisma `WebhookProvider`: `SLACK`, `TEAMS`, `DISCORD`, `CUSTOM`) set at

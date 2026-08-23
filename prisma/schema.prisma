@@ -64,6 +64,7 @@ model ErrorEvent {
   lineNumber      Int?
   codeSnippet     String?
   environment     String?
+  aiAnalysis      String?
   occurrenceCount Int         @default(1)
   status          ErrorStatus @default(NEW)
   firstSeenAt     DateTime    @default(now())
