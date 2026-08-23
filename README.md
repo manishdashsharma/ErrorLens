@@ -54,6 +54,13 @@ own project — each with its own key, its own alert destination, and its
 own repo linked for git correlation. Errors from one project never leak
 into another.
 
+## Getting Started
+
+See [INTEGRATION.md](./INTEGRATION.md) for the full walkthrough — deploy
+ErrorLens, create a project, and wire up your app with the
+[`errorlens-express`](https://www.npmjs.com/package/errorlens-express)
+SDK.
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute, and
