@@ -4,6 +4,7 @@ import app from './app.js';
 import config from './config/index.js';
 import { logger } from './shared/index.js';
 import { connectDatabases, disconnectDatabases } from './config/databases.js';
+import { connectRedis, disconnectRedis } from './config/redis.js';
 
 const PORT = config.port || 3000;
 
@@ -11,6 +12,7 @@ async function startServer() {
   try {
     logger.startup('Starting ErrorLens Server...');
     await connectDatabases();
+    await connectRedis();
 
     const server = app.listen(PORT, () => {
       logger.success(`Server running on port ${PORT}`);
@@ -39,6 +41,7 @@ async function startServer() {
 
         try {
           await disconnectDatabases();
+          await disconnectRedis();
           logger.success('Database connections closed');
         } catch (error) {
           logger.error(`Error during database disconnect: ${error.message}`);

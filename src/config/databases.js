@@ -1,12 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import Redis from 'ioredis';
 import config from './index.js';
 import { logger } from '../shared/index.js';
 
 let prisma;
 let readPrisma;
-let redisCluster;
 
 function initializePrisma() {
   if (!prisma) {
@@ -32,35 +30,9 @@ function initializePrisma() {
   return { prisma, readPrisma: readPrisma || prisma };
 }
 
-function initializeRedis() {
-  if (!redisCluster && config.redis.clusterUrls.length > 0) {
-    if (config.redis.clusterUrls.length === 1) {
-      redisCluster = new Redis(config.redis.clusterUrls[0], {
-        password: config.redis.password,
-      });
-    } else {
-      redisCluster = new Redis.Cluster(
-        config.redis.clusterUrls.map((url) => {
-          const urlObj = new URL(url);
-          return {
-            host: urlObj.hostname,
-            port: urlObj.port || 6379,
-          };
-        }),
-        {
-          redisOptions: {
-            password: config.redis.password,
-          },
-        }
-      );
-    }
-  }
-  return redisCluster;
-}
-
 async function connectDatabases() {
   try {
-    logger.info('🔌 Connecting to databases...');
+    logger.info('🔌 Connecting to database...');
 
     const { prisma: writeDB, readPrisma: readDB } = initializePrisma();
     await writeDB.$connect();
@@ -70,14 +42,6 @@ async function connectDatabases() {
       await readDB.$connect();
       logger.success('PostgreSQL (read) connected');
     }
-
-    if (config.redis.clusterUrls.length > 0) {
-      const redis = initializeRedis();
-      await redis.ping();
-      logger.success('Redis connected');
-    }
-
-    logger.success('All databases connected successfully');
   } catch (error) {
     logger.error(`❌ Database connection failed: ${error.message}`);
     throw error;
@@ -100,48 +64,27 @@ function getReadDB() {
   return readPrisma;
 }
 
-function getRedisClient() {
-  if (!redisCluster) {
-    return initializeRedis();
-  }
-  return redisCluster;
-}
-
 async function checkDatabaseHealth() {
   const health = {
-    postgresql: {
-      write: false,
-      read: false,
-      writeLatency: null,
-      readLatency: null,
-    },
-    redis: { connected: false, latency: null },
+    write: false,
+    read: false,
+    writeLatency: null,
+    readLatency: null,
     errors: [],
   };
 
   try {
     const writeStart = Date.now();
     await getWriteDB().$queryRaw`SELECT 1`;
-    health.postgresql.write = true;
-    health.postgresql.writeLatency = Date.now() - writeStart;
+    health.write = true;
+    health.writeLatency = Date.now() - writeStart;
 
     const readStart = Date.now();
     await getReadDB().$queryRaw`SELECT 1`;
-    health.postgresql.read = true;
-    health.postgresql.readLatency = Date.now() - readStart;
+    health.read = true;
+    health.readLatency = Date.now() - readStart;
   } catch (error) {
     health.errors.push(`PostgreSQL: ${error.message}`);
-  }
-
-  try {
-    if (config.redis.clusterUrls.length > 0) {
-      const redisStart = Date.now();
-      await getRedisClient().ping();
-      health.redis.connected = true;
-      health.redis.latency = Date.now() - redisStart;
-    }
-  } catch (error) {
-    health.errors.push(`Redis: ${error.message}`);
   }
 
   return health;
@@ -149,7 +92,7 @@ async function checkDatabaseHealth() {
 
 async function disconnectDatabases() {
   try {
-    logger.info('Disconnecting from databases...');
+    logger.info('Disconnecting from database...');
 
     if (prisma) {
       await prisma.$disconnect();
@@ -159,14 +102,8 @@ async function disconnectDatabases() {
       await readPrisma.$disconnect();
       logger.info('✅ PostgreSQL (read) disconnected');
     }
-    if (redisCluster) {
-      redisCluster.disconnect();
-      logger.info('✅ Redis disconnected');
-    }
-
-    logger.info('🎉 All databases disconnected successfully');
   } catch (error) {
-    logger.error('❌ Error disconnecting from databases:', error);
+    logger.error('❌ Error disconnecting from database:', error);
   }
 }
 
@@ -175,6 +112,5 @@ export {
   disconnectDatabases,
   getWriteDB,
   getReadDB,
-  getRedisClient,
   checkDatabaseHealth,
 };

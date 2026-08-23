@@ -16,6 +16,12 @@ const config = {
 
   adminSecret: process.env.ADMIN_SECRET,
 
+  inngest: {
+    eventKey: process.env.INNGEST_EVENT_KEY,
+    signingKey: process.env.INNGEST_SIGNING_KEY,
+    baseUrl: process.env.INNGEST_BASE_URL,
+  },
+
   rateLimiting: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,

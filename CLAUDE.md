@@ -44,7 +44,15 @@ teammate's PR to.
 - **Background jobs**: Inngest, self-hosted (own container, own Postgres
   database — `inngest`, separate from the app's `errorlens` database, own
   migrations it manages itself). Used for anything that must not block the
-  ingestion request: git correlation, LLM analysis, webhook delivery.
+  ingestion request: git correlation, LLM analysis, webhook delivery. The
+  client instance lives in `src/config/inngest.js`, alongside
+  `databases.js` — it's a connection/config concern, same category as the
+  Prisma or Redis clients, not a `shared/` utility. Every function lives
+  under `src/shared/inngest/functions/<name>.function.js`, registered in
+  `functions/index.js`. Don't scatter Inngest functions into individual
+  feature modules or a separate `src/jobs/` — one home for all of it. The
+  Express app serves them at `/api/inngest` via `inngest/express`'s
+  `serve()`.
 - **Git correlation**: Octokit
 - **LLM**: pluggable provider interface, config-driven
 - **Alert delivery**: `webhookUrl` + `webhookProvider` per project.

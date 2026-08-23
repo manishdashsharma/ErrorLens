@@ -5,9 +5,17 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { randomUUID } from 'crypto';
+import { serve as serveInngest } from 'inngest/express';
 
 import config from './config/index.js';
-import { logger, errorHandler, notFoundHandler, httpResponse } from './shared/index.js';
+import {
+  logger,
+  errorHandler,
+  notFoundHandler,
+  httpResponse,
+  inngest,
+  inngestFunctions,
+} from './shared/index.js';
 import router from './router/index.js';
 
 const app = express();
@@ -112,6 +120,8 @@ app.get('/', (req, res) => {
     }
   );
 });
+
+app.use('/api/inngest', serveInngest({ client: inngest, functions: inngestFunctions }));
 
 app.use('/v1', router);
 
