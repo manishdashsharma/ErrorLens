@@ -121,7 +121,14 @@ app.get('/', (req, res) => {
   );
 });
 
-app.use('/api/inngest', serveInngest({ client: inngest, functions: inngestFunctions }));
+app.use(
+  '/api/inngest',
+  serveInngest({
+    client: inngest,
+    functions: inngestFunctions,
+    serveOrigin: config.inngest.serveOrigin,
+  })
+);
 
 app.use('/v1', router);
 

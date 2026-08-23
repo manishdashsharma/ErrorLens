@@ -20,6 +20,15 @@ const config = {
     eventKey: process.env.INNGEST_EVENT_KEY,
     signingKey: process.env.INNGEST_SIGNING_KEY,
     baseUrl: process.env.INNGEST_BASE_URL,
+    serveOrigin: process.env.INNGEST_SERVE_ORIGIN,
+  },
+
+  github: {
+    token: process.env.GITHUB_TOKEN,
+  },
+  llm: {
+    provider: process.env.LLM_PROVIDER,
+    apiKey: process.env.LLM_API_KEY,
   },
 
   rateLimiting: {

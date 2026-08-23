@@ -122,18 +122,24 @@ projects, from day one. This shapes the design, not just the query tuning:
   timestamps. The scoping root for everything else.
 - `ApiKey` — belongs to a `Project`. Support multiple keys per project
   (rotation without downtime) unless told otherwise; store a hash, never
-  the raw key, after creation. Hash with SHA-256 (`shared/utils/apiKey.js`),
+  the raw key, after creation. Hash with SHA-256 (`shared/utils/api-key.js`),
   **not bcrypt** — bcrypt's random salt makes it impossible to look up a
   key by hash with a unique index, and the ingestion hot path needs an
   O(1) lookup on every request. Bcrypt is for low-entropy human passwords;
   an API key is already a high-entropy random secret, so a fast
   deterministic hash is the correct tool, not a weaker one.
-- `ErrorEvent` (or equivalent) — always carries `projectId`, a fingerprint,
-  an occurrence count, and lifecycle state (new / resolved / ignored).
-- `meta` module — small, unauthenticated `GET /api/v1/meta` endpoint
-  exposing project name, version, and author attribution
-  (Manish Dash Sharma). This is the "who built this" module — keep it
-  tiny, don't let it grow into a settings endpoint.
+- `ErrorEvent` — carries `projectId`, `fingerprint` (unique per project,
+  computed in `shared/utils/fingerprint.js` from the normalized top stack
+  frames), `occurrenceCount`, and `status` (`ErrorStatus`: `NEW` /
+  `RESOLVED` / `IGNORED`). Ingestion always `upsert`s on
+  `[projectId, fingerprint]` — new fingerprint creates the row, a repeat
+  increments `occurrenceCount`. A recurrence outside the Redis dedup TTL
+  window flips `status` back to `NEW` even if it was `RESOLVED` — this is
+  deliberate ("regression" behavior), not a bug.
+- `meta` module — small, unauthenticated `GET /v1/meta` endpoint exposing
+  project name, version, and author attribution (Manish Dash Sharma).
+  This is the "who built this" module — keep it tiny, don't let it grow
+  into a settings endpoint.
 
 New modules are scaffolded from `src/modules/_template`, following the
 structure in global CLAUDE.md (`controllers/`, `services/`, `routes/`,
@@ -188,6 +194,38 @@ Compute `totalPage` and `nextPage` in the service, from the same
 `Promise.all([count, findMany])` pattern the global convention already
 requires — this changes what you hand back in `pagination`, not how you
 fetch the data.
+
+## Self-hosted Inngest: syncing the app is a real step, not optional
+
+The app runs on the host; the self-hosted `inngest` container runs in
+Docker. Two separate networking directions, both matter:
+
+1. **App → Inngest** (`inngest.send()`, sending events): uses
+   `INNGEST_BASE_URL` (`http://localhost:8288`), works immediately since
+   that port is published to the host.
+2. **Inngest → app** (the server invoking a function): the container has
+   to call back into `/api/inngest` on the host. `localhost:3000` from
+   *inside* the container means the container itself, not the host — this
+   fails silently-ish (`"Unable to reach SDK URL"` in the Inngest
+   container's logs, not in the app's). Fixed via `INNGEST_SERVE_ORIGIN`
+   (`http://host.docker.internal:3000`), passed as `serveOrigin` to
+   `serve()` in `app.js`. `docker-compose.yml`'s `inngest` service has
+   `extra_hosts: host.docker.internal:host-gateway` so this also resolves
+   on Linux (Docker Desktop gives it for free on macOS/Windows).
+
+The app also has to **register** itself with the Inngest server before
+any function will run — this isn't automatic. After boot (or after any
+change to the function list), sync with:
+
+```bash
+curl -X PUT http://localhost:3000/api/inngest
+```
+
+If you skip this, events still publish and get received by Inngest fine
+(`"publishing event"` / `"received event"` in its logs) — they just sit
+there forever, because Inngest doesn't know your app exists yet. No error
+on the app side either. If a webhook/function isn't firing, this sync
+step is the first thing to check, before assuming the code is broken.
 
 ## Docker Compose is the source of truth for local infra
 

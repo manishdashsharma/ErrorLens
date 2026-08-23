@@ -10,6 +10,7 @@ package-lock.json.bak
 .env.staging
 .env.production
 sessions/
+node-test-project/
 
 # Logs
 logs/

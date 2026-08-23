@@ -24,7 +24,8 @@ model Project {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  apiKeys ApiKey[]
+  apiKeys     ApiKey[]
+  errorEvents ErrorEvent[]
 
   @@index([isActive])
   @@map("projects")
@@ -45,5 +46,38 @@ model ApiKey {
 
   @@index([projectId, isActive])
   @@map("api_keys")
+}
+
+enum ErrorStatus {
+  NEW
+  RESOLVED
+  IGNORED
+}
+
+model ErrorEvent {
+  id              String      @id @default(cuid())
+  projectId       String
+  fingerprint     String
+  message         String
+  stackTrace      String?
+  fileName        String?
+  lineNumber      Int?
+  codeSnippet     String?
+  environment     String?
+  occurrenceCount Int         @default(1)
+  status          ErrorStatus @default(NEW)
+  firstSeenAt     DateTime    @default(now())
+  lastSeenAt      DateTime    @default(now())
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId, isActive])
+  @@index([projectId, createdAt])
+  @@index([projectId, status])
+  @@map("error_events")
 }
 

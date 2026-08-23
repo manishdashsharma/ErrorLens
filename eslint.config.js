@@ -29,6 +29,7 @@ export default [
         setImmediate: 'readonly',
         clearImmediate: 'readonly',
         URL: 'readonly',
+        fetch: 'readonly',
       },
     },
     rules: {
