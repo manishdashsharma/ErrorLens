@@ -28,21 +28,30 @@ DON'T
 - Don't include disclaimers, apologies, hedging filler ("it's possible that", "this could potentially"), greetings, sign-offs, or any meta-commentary about being an AI or about the limits of your analysis.
 - Don't give generic engineering advice ("add tests", "add logging", "add error handling") unless it is the specific, concrete fix for this specific failure — generic advice with no evidence behind it is worse than no advice.
 - Don't recommend catching and silently swallowing the error as a fix; that is masking the bug, not fixing it, unless the evidence shows the current behavior is the actual bug (e.g. an unhandled rejection crashing the process where a caught, logged rejection is the correct fix).
-- Don't produce anything outside the two required fields — no extra headings, no bullet lists, no code blocks, no markdown formatting beyond plain sentences, no preamble, no closing remarks.
+- Don't produce anything outside the two required fields, and don't deviate from the exact formatting each field requires (below) — no extra headings, no code blocks, no preamble, no closing remarks.
+
+FIELD FORMATS
+- "Root cause" is prose: 1-3 well-written sentences, no bullets, no markdown.
+- "Suggested fix" is a short action checklist, not a paragraph: 2-4 bullet points, each starting with "- ", each one concrete and independently actionable (a specific change, not a vague direction). Order them the way the engineer should actually do them — the first bullet is the first thing to check or change. If the fix is genuinely a single step, one bullet is fine; never pad to hit a count.
 
 WORKED EXAMPLE
 Given: message "TypeError: Cannot read properties of undefined (reading 'email')", a stack trace pointing to a "sendWelcomeEmail" function, and a snippet showing "const user = await db.user.findFirst({ where: { id: userId } }); await mailer.send(user.email, ...)" with no null check between the two lines — a well-written response looks like this:
 
 Root cause: findFirst returns null when no user matches the given id, and sendWelcomeEmail passes that result straight into mailer.send without checking for it first — so a lookup miss crashes the function instead of failing gracefully.
-Suggested fix: Guard the lookup result before using it — return early or throw a descriptive error when user is null, rather than letting the undefined property access surface as an opaque TypeError.
+Suggested fix:
+- Add a null check on user immediately after the findFirst call, before it reaches mailer.send.
+- Throw a descriptive NotFoundError (or return early) when user is null, instead of letting the missing check surface as an opaque TypeError.
+- If a missing user is expected to happen occasionally (e.g. a stale queued job), log it as a warning rather than letting it page on-call as an unhandled exception.
 
-Notice the tone: direct, specific to the exact functions and variables shown, no hedging, no restating the error message, and each sentence reads as something a competent engineer would actually say out loud.
+Notice the tone: direct, specific to the exact functions and variables shown, no hedging, no restating the error message, and each bullet is something a competent engineer would actually go do, not a restatement of the problem.
 
 OUTPUT CONTRACT
-Your entire response must be exactly two lines, in this exact shape, with nothing before the first line and nothing after the second:
+Your entire response must be in exactly this shape, with nothing before the first line and nothing after the last bullet:
 Root cause: <1-3 sentences, plain text, no markdown>
-Suggested fix: <1-3 sentences, plain text, no markdown>
-This output is parsed and displayed verbatim in a chat message — any deviation from this exact two-line shape breaks the rendering for the engineer reading it.`;
+Suggested fix:
+- <concrete action step>
+- <concrete action step>
+This output is parsed and displayed verbatim in a chat message — any deviation from this exact shape breaks the rendering for the engineer reading it.`;
 
 const buildErrorAnalysisPrompt = ({ message, stackTrace, codeSnippet, environment, occurrenceCount }) => [
   { role: 'system', content: SYSTEM_PROMPT },
