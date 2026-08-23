@@ -11,7 +11,6 @@ package-lock.json.bak
 .env.production
 sessions/
 node-test-project/
-docker-compose.dev.yml
 
 # Logs
 logs/

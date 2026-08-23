@@ -304,7 +304,8 @@ docs).
 
 Local development doesn't run `app` in Docker — hot-reload via
 `npm run dev` on the host is faster than rebuilding an image per change.
-`docker-compose.dev.yml` (gitignored, personal) is `docker-compose.yml`
+`docker-compose.dev.yml` — checked into the repo, not gitignored, so
+every contributor gets the same local setup — is `docker-compose.yml`
 minus the `app` service, for exactly this. See `CONTRIBUTING.md`.
 
 `Dockerfile` is a two-stage build: `deps` (just `npm ci`, cached

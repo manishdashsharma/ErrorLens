@@ -63,9 +63,6 @@ The essentials:
 ## Local Development
 
 ```bash
-cp docker-compose.yml docker-compose.dev.yml
-# then remove the `app` service from docker-compose.dev.yml — you're
-# running the app on the host with hot-reload instead, not in a container
 docker compose -f docker-compose.dev.yml up -d   # postgres, redis, inngest
 npm install
 npm run db:generate
@@ -75,8 +72,9 @@ npm run dev
 
 `docker-compose.yml` itself is the production file — `docker compose up -d`
 with no `-f` flag runs the full stack, app included, which is what a
-company deploys on a VPS. `docker-compose.dev.yml` is gitignored, a local,
-personal file — not something every contributor needs to keep identical.
+company deploys on a VPS. `docker-compose.dev.yml` is the same three infra
+services minus `app`, checked into the repo so every contributor gets the
+same local setup without reconstructing it themselves.
 
 ## Testing
 
