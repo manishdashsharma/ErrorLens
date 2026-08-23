@@ -59,6 +59,12 @@ into another.
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute, and
 [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community guidelines.
 
+## Built & Maintained By
+
+**[Manish Dash Sharma](https://www.manishdashsharma.com/)** — Senior Software Engineer
+
+*Architecting AI-powered systems that scale. From GenAI integrations to full-stack solutions — turning complex problems into elegant code.*
+
 ## License
 
 [MIT](./LICENSE) © Manish Dash Sharma
