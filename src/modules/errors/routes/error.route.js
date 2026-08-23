@@ -6,12 +6,23 @@ import {
   resolveError,
   ignoreError,
 } from '../controllers/error.controller.js';
-import { authenticateAdmin, authenticateApiKey, validateRequest } from '../../../shared/index.js';
+import {
+  authenticateAdmin,
+  authenticateApiKey,
+  validateRequest,
+  ingestionRateLimiter,
+} from '../../../shared/index.js';
 import { ingestErrorSchema, listErrorsSchema } from '../validations/error.schema.js';
 
 const router = express.Router();
 
-router.post('/ingest', authenticateApiKey, validateRequest(ingestErrorSchema, 'body'), ingestError);
+router.post(
+  '/ingest',
+  authenticateApiKey,
+  ingestionRateLimiter,
+  validateRequest(ingestErrorSchema, 'body'),
+  ingestError
+);
 
 router.get('/', authenticateAdmin, validateRequest(listErrorsSchema, 'query'), getErrors);
 router.get('/:errorId', authenticateAdmin, getErrorById);

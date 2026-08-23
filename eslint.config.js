@@ -30,6 +30,7 @@ export default [
         clearImmediate: 'readonly',
         URL: 'readonly',
         fetch: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
     rules: {

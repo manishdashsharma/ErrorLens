@@ -1,6 +1,6 @@
 import { getWriteDB, getReadDB } from '../../../config/databases.js';
 import { getRedisClient } from '../../../config/redis.js';
-import { computeFingerprint, inngest, EErrorStatus } from '../../../shared/index.js';
+import { computeFingerprint, inngest, EErrorStatus, logger } from '../../../shared/index.js';
 
 const DEDUP_TTL_SECONDS = 60 * 60;
 
@@ -28,10 +28,18 @@ const ingestErrorService = async (project, payload) => {
   const dedupKey = `dedup:${project.id}:${fingerprint}`;
 
   const redis = getRedisClient();
-  let isNewOccurrence = true;
+  let redisConfirmedNew = null;
+
   if (redis) {
-    const setResult = await redis.set(dedupKey, '1', 'EX', DEDUP_TTL_SECONDS, 'NX');
-    isNewOccurrence = setResult === 'OK';
+    try {
+      const setResult = await redis.set(dedupKey, '1', 'EX', DEDUP_TTL_SECONDS, 'NX');
+      redisConfirmedNew = setResult === 'OK';
+    } catch (error) {
+      logger.error('Redis dedup check failed, degrading to occurrence-count fallback', {
+        error: error.message,
+        projectId: project.id,
+      });
+    }
   }
 
   const db = getWriteDB();
@@ -51,16 +59,26 @@ const ingestErrorService = async (project, payload) => {
     update: {
       occurrenceCount: { increment: 1 },
       lastSeenAt: new Date(),
-      status: isNewOccurrence ? EErrorStatus.NEW : undefined,
+      status: redisConfirmedNew ? EErrorStatus.NEW : undefined,
     },
     select: ERROR_EVENT_SELECT,
   });
 
+  const isNewOccurrence = redisConfirmedNew ?? errorEvent.occurrenceCount === 1;
+
   if (isNewOccurrence) {
-    await inngest.send({
-      name: 'error/captured',
-      data: { errorEventId: errorEvent.id, projectId: project.id },
-    });
+    try {
+      await inngest.send({
+        name: 'error/captured',
+        data: { errorEventId: errorEvent.id, projectId: project.id },
+      });
+    } catch (error) {
+      logger.error('Failed to enqueue error/captured event, enrichment will be skipped', {
+        error: error.message,
+        errorEventId: errorEvent.id,
+        projectId: project.id,
+      });
+    }
   }
 
   return { received: true, errorEventId: errorEvent.id, isNew: isNewOccurrence };

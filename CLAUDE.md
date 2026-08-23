@@ -103,6 +103,15 @@ middleware:
 Never let an ingestion request touch data outside its resolved `projectId`.
 Never let the control plane skip auth because "it's just an internal call."
 
+The ingestion endpoint also carries its own rate limit, separate from the
+global IP-based one on the control plane — keyed by `req.project.id`
+(set by `authenticateApiKey`), not by IP, via `ingestionRateLimiter`. One
+busy or misbehaving project must not exhaust another project's ingestion
+quota on the same self-hosted instance. `express-rate-limit` v8 requires
+the `ipKeyGenerator` helper for any IP-based fallback in a custom
+`keyGenerator` — it inspects the function's source text and throws at
+startup if it sees `req.ip` used without it.
+
 ## Scale is a v1 requirement, not a later optimization
 
 Assume tens of thousands to 100,000+ error events/day, bursty, across many
@@ -130,6 +139,35 @@ projects, from day one. This shapes the design, not just the query tuning:
   loud into Inngest's own retry/dead-letter handling — don't swallow errors
   inside a step just to keep the function "green."
 
+## Redis/Inngest failures must degrade, never take the app down
+
+This was a real bug, not a hypothetical: `connectRedis()` used to `await
+redis.ping()` with no timeout and no catch. When Redis was unreachable,
+`ioredis`'s default retry behavior meant that `await` never resolved or
+rejected — the app hung indefinitely at boot and never bound to its port.
+No error, no log, just silence. A per-request try/catch around the
+ingestion dedup call (which also exists, see below) does nothing if the
+process never finished starting.
+
+The fix has two parts, and both matter:
+- **Boot-time**: `connectRedis()` races the ping against a 5s timeout and
+  always resolves (never throws) — Redis being down delays boot by at
+  most 5s, never blocks it. The `Redis` client itself is constructed with
+  `connectTimeout`, `maxRetriesPerRequest: 1`, and a capped
+  `retryStrategy` — fail fast, don't let a single command retry for
+  20+ attempts on the ingestion hot path.
+- **Request-time**: `ingestErrorService`'s Redis `SET NX` call is wrapped
+  in try/catch. On failure, dedup falls back to a heuristic —
+  `errorEvent.occurrenceCount === 1` after the Postgres upsert — instead
+  of just assuming "always new" or "never new." `inngest.send()` is
+  wrapped the same way: the error is already durably stored in Postgres
+  by that point, so a down Inngest server must not fail the ingestion
+  response, only skip enrichment for that occurrence.
+
+The same principle applies to any future dependency on Redis or Inngest:
+the ingestion path's only hard requirement is Postgres. Everything else
+degrades.
+
 ## Module boundaries (multi-project data model)
 
 - `Project` — name, generic `webhookUrl`, GitHub repo config, `isActive`,
@@ -149,7 +187,10 @@ projects, from day one. This shapes the design, not just the query tuning:
   `[projectId, fingerprint]` — new fingerprint creates the row, a repeat
   increments `occurrenceCount`. A recurrence outside the Redis dedup TTL
   window flips `status` back to `NEW` even if it was `RESOLVED` — this is
-  deliberate ("regression" behavior), not a bug.
+  deliberate ("regression" behavior), not a bug. `RESOLVED`/`IGNORED`
+  rows older than `RETENTION_DAYS` (default 90) are soft-deleted daily by
+  the `error-retention` Inngest cron function — `NEW` rows are never
+  auto-purged regardless of age, since those are unresolved issues.
 - `meta` module — small, unauthenticated `GET /v1/meta` endpoint exposing
   project name, version, and author attribution (Manish Dash Sharma).
   This is the "who built this" module — keep it tiny, don't let it grow

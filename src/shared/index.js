@@ -14,6 +14,7 @@ export {
 export { authenticateAdmin } from './middleware/auth.middleware.js';
 export { authenticateApiKey } from './middleware/api-key-auth.middleware.js';
 export { validateRequest } from './middleware/validate-request.middleware.js';
+export { ingestionRateLimiter } from './middleware/ingestion-rate-limit.middleware.js';
 
 // Utils
 export { default as logger } from './utils/logger.js';

@@ -2,14 +2,22 @@ import Redis from 'ioredis';
 import config from './index.js';
 import { logger } from '../shared/index.js';
 
+const CONNECT_TIMEOUT_MS = 5000;
+const BOOT_TIMEOUT_MS = 5000;
+
 let redisClient;
 
 function initializeRedis() {
   if (!redisClient && config.redis.clusterUrls.length > 0) {
+    const redisOptions = {
+      password: config.redis.password,
+      connectTimeout: CONNECT_TIMEOUT_MS,
+      maxRetriesPerRequest: 1,
+      retryStrategy: (times) => Math.min(times * 200, 2000),
+    };
+
     if (config.redis.clusterUrls.length === 1) {
-      redisClient = new Redis(config.redis.clusterUrls[0], {
-        password: config.redis.password,
-      });
+      redisClient = new Redis(config.redis.clusterUrls[0], redisOptions);
     } else {
       redisClient = new Redis.Cluster(
         config.redis.clusterUrls.map((url) => {
@@ -19,13 +27,13 @@ function initializeRedis() {
             port: urlObj.port || 6379,
           };
         }),
-        {
-          redisOptions: {
-            password: config.redis.password,
-          },
-        }
+        { redisOptions }
       );
     }
+
+    redisClient.on('error', (error) => {
+      logger.error(`Redis client error: ${error.message}`);
+    });
   }
   return redisClient;
 }
@@ -38,10 +46,21 @@ function getRedisClient() {
 }
 
 async function connectRedis() {
-  if (config.redis.clusterUrls.length > 0) {
+  if (config.redis.clusterUrls.length === 0) {
+    return;
+  }
+
+  try {
     const redis = initializeRedis();
-    await redis.ping();
+    await Promise.race([
+      redis.ping(),
+      new Promise((_resolve, reject) =>
+        setTimeout(() => reject(new Error('Redis connection timed out')), BOOT_TIMEOUT_MS)
+      ),
+    ]);
     logger.success('Redis connected');
+  } catch (error) {
+    logger.error(`⚠️ Redis unavailable at startup, continuing without it: ${error.message}`);
   }
 }
 

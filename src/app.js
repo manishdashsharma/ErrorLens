@@ -38,17 +38,13 @@ app.use(
 
 const corsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = config.cors.origins || [
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ];
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || config.cors.origins.includes('*') || config.cors.origins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true,
+  credentials: false,
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
