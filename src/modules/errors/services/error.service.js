@@ -61,6 +61,11 @@ const ingestErrorService = async (project, payload) => {
       occurrenceCount: { increment: 1 },
       lastSeenAt: new Date(),
       status: redisConfirmedNew ? EErrorStatus.NEW : undefined,
+      stackTrace: payload.stack,
+      fileName: payload.fileName,
+      lineNumber: payload.lineNumber,
+      codeSnippet: payload.codeSnippet,
+      environment: payload.environment,
     },
     select: ERROR_EVENT_SELECT,
   });
