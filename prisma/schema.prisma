@@ -65,6 +65,7 @@ model ErrorEvent {
   codeSnippet     String?
   environment     String?
   aiAnalysis      String?
+  suspectCommit   Json?
   occurrenceCount Int         @default(1)
   status          ErrorStatus @default(NEW)
   firstSeenAt     DateTime    @default(now())

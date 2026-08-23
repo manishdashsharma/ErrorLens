@@ -15,6 +15,7 @@ const ERROR_EVENT_SELECT = {
   codeSnippet: true,
   environment: true,
   aiAnalysis: true,
+  suspectCommit: true,
   occurrenceCount: true,
   status: true,
   firstSeenAt: true,

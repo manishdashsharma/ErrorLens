@@ -4,6 +4,7 @@ import logger from '../../utils/logger.js';
 import { getReadDB, getWriteDB } from '../../../config/databases.js';
 import { formatWebhookPayload } from '../../utils/webhook-formatter.js';
 import { analyzeError } from '../../ai/index.js';
+import { correlateCommit } from '../../github/index.js';
 
 const ERROR_EVENT_SELECT = {
   id: true,
@@ -66,9 +67,33 @@ const errorCaptured = inngest.createFunction(
       });
     }
 
+    let suspectCommit = null;
+
     if (config.github.token && project.githubOwner && project.githubRepo) {
-      await step.run('git-correlation', async () => {
-        logger.info('Git correlation not yet implemented, skipping', { projectId });
+      suspectCommit = await step.run('git-correlation', async () => {
+        try {
+          const commit = await correlateCommit({
+            owner: project.githubOwner,
+            repo: project.githubRepo,
+            fileName: errorEvent.fileName,
+          });
+
+          if (commit) {
+            const db = getWriteDB();
+            await db.errorEvent.update({
+              where: { id: errorEvent.id },
+              data: { suspectCommit: commit },
+            });
+          }
+
+          return commit;
+        } catch (error) {
+          logger.error('Git correlation failed, continuing without it', {
+            error: error.message,
+            projectId,
+          });
+          return null;
+        }
       });
     }
 
@@ -76,7 +101,7 @@ const errorCaptured = inngest.createFunction(
 
     if (project.webhookUrl && project.webhookProvider) {
       delivered = await step.run('deliver-webhook', async () => {
-        const enrichedErrorEvent = { ...errorEvent, aiAnalysis };
+        const enrichedErrorEvent = { ...errorEvent, aiAnalysis, suspectCommit };
         const payload = formatWebhookPayload(project.webhookProvider, enrichedErrorEvent, project);
         const response = await fetch(project.webhookUrl, {
           method: 'POST',
@@ -92,7 +117,7 @@ const errorCaptured = inngest.createFunction(
       });
     }
 
-    return { delivered, analyzed: Boolean(aiAnalysis) };
+    return { delivered, analyzed: Boolean(aiAnalysis), correlated: Boolean(suspectCommit) };
   }
 );
 

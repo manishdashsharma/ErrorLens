@@ -57,6 +57,16 @@ const formatSlackPayload = (errorEvent, project) => {
     }
   }
 
+  if (errorEvent.suspectCommit) {
+    const commit = errorEvent.suspectCommit;
+    const commitLine = `<${commit.url}|${commit.sha}> ${commit.message} — _${commit.author}_`;
+    blocks.push({ type: 'divider' });
+    blocks.push({
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*Suspect commit*\n${commitLine}` },
+    });
+  }
+
   if (errorEvent.stackTrace) {
     blocks.push({ type: 'divider' });
     blocks.push({
@@ -85,6 +95,16 @@ const formatDiscordPayload = (errorEvent, project) => {
         inline: false,
       });
     }
+  }
+
+  if (errorEvent.suspectCommit) {
+    const commit = errorEvent.suspectCommit;
+    fields.push(DISCORD_SPACER_FIELD);
+    fields.push({
+      name: 'Suspect commit',
+      value: `[\`${commit.sha}\`](${commit.url}) ${commit.message} — *${commit.author}*`,
+      inline: false,
+    });
   }
 
   if (errorEvent.stackTrace) {
@@ -126,6 +146,14 @@ const formatTeamsPayload = (errorEvent, project) => {
 
   const sections = [{ facts }];
 
+  if (errorEvent.suspectCommit) {
+    const commit = errorEvent.suspectCommit;
+    sections.unshift({
+      activityTitle: 'Suspect commit',
+      text: `[${commit.sha}](${commit.url}) ${commit.message} — ${commit.author}`,
+    });
+  }
+
   if (analysis) {
     sections.unshift({ activityTitle: 'What caused it', text: analysis.rootCause });
     if (analysis.suggestedFix) {
@@ -158,6 +186,7 @@ const formatCustomPayload = (errorEvent, project) => {
     fingerprint: errorEvent.fingerprint,
     rootCause: analysis?.rootCause || null,
     suggestedFix: analysis?.suggestedFix || null,
+    suspectCommit: errorEvent.suspectCommit || null,
   };
 };
 

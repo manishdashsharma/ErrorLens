@@ -53,7 +53,18 @@ teammate's PR to.
   feature modules or a separate `src/jobs/` — one home for all of it. The
   Express app serves them at `/api/inngest` via `inngest/express`'s
   `serve()`.
-- **Git correlation**: Octokit
+- **Git correlation**: Octokit, same lazy-client pattern as `ai.js`
+  (`config/github.js`'s `getGithubClient()`). Logic lives in
+  `shared/github/correlate-commit.js` — the simplest useful signal,
+  `repos.listCommits({ owner, repo, path: fileName, per_page: 1 })`,
+  i.e. "which commit most recently touched this exact file." Result is
+  stored as `ErrorEvent.suspectCommit` (a `Json?` field: `sha`, `message`,
+  `author`, `url`, `date` — not four separate columns, since it's always
+  read/written as one unit and never queried by its sub-fields). Wrapped
+  in try/catch inside its Inngest step same as everything else in that
+  function — a failed GitHub lookup (rate limit, revoked token, private
+  repo the token can't see) must not block AI analysis or webhook
+  delivery, which both run independently of it.
 - **LLM**: OpenAI-compatible client (`openai` npm package), pointed at
   Groq by default (`AI_BASE_URL=https://api.groq.com/openai/v1`,
   `AI_MODEL=openai/gpt-oss-120b`). Swapping providers is an env-var
