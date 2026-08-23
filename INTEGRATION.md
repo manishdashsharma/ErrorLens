@@ -6,6 +6,9 @@ it. Every step below has been run for real, not just described.
 
 ## 1. Deploy ErrorLens
 
+**On a VPS (production)** — `docker-compose.yml` runs the whole stack,
+including the app itself, in one command:
+
 ```bash
 git clone https://github.com/manishdashsharma/errorlens.git
 cd errorlens
@@ -14,11 +17,14 @@ cp .env.example .env
 # whichever of AI_API_KEY / GITHUB_TOKEN you want enrichment for —
 # see .env.example for what each one unlocks and how to generate it
 docker compose up -d
-npm install
-npm run db:generate
-npm run db:migrate
-npm run dev
 ```
+
+That's it — Postgres, Redis, self-hosted Inngest, and the ErrorLens app
+all start together, migrations run automatically on container start, and
+the app is reachable on port 3000.
+
+**For local development** on this repo itself, run just the infra in
+Docker and the app on the host with hot-reload — see `CONTRIBUTING.md`.
 
 Confirm it's up:
 

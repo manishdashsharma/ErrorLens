@@ -43,13 +43,31 @@ services:
     ports:
       - '8288:8288' # Event API, REST/GraphQL API, dashboard UI
       - '8289:8289' # Connect WebSocket gateway
-    extra_hosts:
-      - 'host.docker.internal:host-gateway' # Linux needs this explicitly; Docker Desktop (macOS/Windows) provides it natively
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://errorlens:errorlens@postgres:5432/errorlens
+      DATABASE_READ_URL: postgresql://errorlens:errorlens@postgres:5432/errorlens
+      REDIS_CLUSTER_URLS: redis://redis:6379
+      INNGEST_BASE_URL: http://inngest:8288
+      INNGEST_SERVE_ORIGIN: http://app:3000
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      inngest:
+        condition: service_started
 
 volumes:
   postgres_data:

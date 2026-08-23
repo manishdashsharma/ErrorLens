@@ -295,10 +295,38 @@ step is the first thing to check, before assuming the code is broken.
 
 ## Docker Compose is the source of truth for local infra
 
-`postgres`, `redis`, `inngest` all run via `docker-compose.yml`. Don't
-introduce a fourth way to run these locally (no separate install
-instructions, no "or install Postgres natively" fallback in docs) — one
-path, `docker compose up`, works the same for every contributor.
+`docker-compose.yml` is the **production** file — `postgres`, `redis`,
+`inngest`, and `app` (the ErrorLens API itself, built from the root
+`Dockerfile`), all four services, `docker compose up -d` and a VPS is
+fully running. Don't introduce a fourth way to run these (no separate
+install instructions, no "or install Postgres natively" fallback in
+docs).
+
+Local development doesn't run `app` in Docker — hot-reload via
+`npm run dev` on the host is faster than rebuilding an image per change.
+`docker-compose.dev.yml` (gitignored, personal) is `docker-compose.yml`
+minus the `app` service, for exactly this. See `CONTRIBUTING.md`.
+
+`Dockerfile` is a two-stage build: `deps` (just `npm ci`, cached
+separately so it doesn't reinstall on every source change) and `runtime`
+(copies `node_modules` + `prisma/` + `prisma.config.js` + `src/` — not
+`COPY . .`, deliberately excludes docs/sessions/tests from the image).
+`prisma generate` at build time needs `DATABASE_URL` to resolve (not a
+live connection, just to parse `prisma.config.js`) — passed as a build
+`ARG` with a placeholder default, scoped to that one `RUN` command only.
+Never switch this to `ENV` — `ENV` persists in every layer after it and
+bakes a fake credential permanently into the image; `ARG` used inline
+(`RUN DATABASE_URL=$DATABASE_URL npx prisma generate`) doesn't. The real
+`DATABASE_URL` always comes from `docker-compose.yml`'s `environment:`
+block at container runtime and overrides whatever the image defaults to.
+Migrations run automatically on container start (`prisma migrate deploy`
+in the `CMD`, before `node src/server.js`) — self-hosters never run a
+manual migration step.
+
+Inside the full stack, `app` reaches `postgres`/`redis`/`inngest` by
+service name (Docker's internal DNS) — no `host.docker.internal` hack
+needed there, that workaround is `docker-compose.dev.yml`-only, for when
+Inngest (in Docker) has to call back into the app running on the host.
 
 ## Comments
 
