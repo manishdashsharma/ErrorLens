@@ -22,3 +22,5 @@ jobs:
       - run: npm run lint
 
       - run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
