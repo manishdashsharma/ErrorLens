@@ -71,8 +71,21 @@ curl -X PUT http://localhost:3000/api/inngest
 
 ## Choosing a version
 
-`docker-compose.yml` pins `ghcr.io/manishdashsharma/errorlens:latest`. To
-pin a specific release instead, edit the `image:` line under the `app`
-service to a tagged version, e.g. `ghcr.io/manishdashsharma/errorlens:v1.0.0`
-— see the [Releases](https://github.com/manishdashsharma/ErrorLens/releases)
-page for available tags.
+`docker-compose.yml` pins `ghcr.io/manishdashsharma/errorlens:latest` —
+this always tracks the newest release, so `docker compose pull app`
+picks up new features and fixes as soon as they ship.
+
+If you don't want to keep pace with upstream and would rather stay on
+whatever you deployed until you decide to move, pin a specific version
+instead of `latest`. Edit the `image:` line under the `app` service in
+your `docker-compose.yml`:
+
+```yaml
+app:
+  image: ghcr.io/manishdashsharma/errorlens:v1.0.0
+```
+
+With a pinned tag, `docker compose pull app` is a no-op forever — you
+only move to a newer version by changing that line yourself, on your own
+schedule. Check the [Releases](https://github.com/manishdashsharma/ErrorLens/releases)
+page for available tags and what changed in each before you do.
