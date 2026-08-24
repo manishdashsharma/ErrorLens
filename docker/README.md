@@ -82,7 +82,7 @@ your `docker-compose.yml`:
 
 ```yaml
 app:
-  image: ghcr.io/manishdashsharma/errorlens:v1.0.0
+  image: ghcr.io/manishdashsharma/errorlens:1.0.0
 ```
 
 With a pinned tag, `docker compose pull app` is a no-op forever — you
