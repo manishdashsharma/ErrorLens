@@ -324,6 +324,26 @@ Migrations run automatically on container start (`prisma migrate deploy`
 in the `CMD`, before `node src/server.js`) — self-hosters never run a
 manual migration step.
 
+## Published image: `docker/` is a standalone distribution, not a fourth way to run infra
+
+`.github/workflows/docker-publish.yml` builds the root `Dockerfile` on
+every `v*` tag push and publishes multi-arch
+(`linux/amd64`/`linux/arm64`) images to
+`ghcr.io/manishdashsharma/errorlens`, tagged `latest`, `<major>.<minor>`,
+and the exact version — then drafts a GitHub Release from the tag. This
+reuses the same `Dockerfile` as local `docker compose build`; it does not
+introduce a second build path.
+
+`docker/` is a self-contained copy of the same four-service stack from
+root `docker-compose.yml`, except the `app` service uses `image:
+ghcr.io/manishdashsharma/errorlens:latest` instead of `build: .`. It
+exists so a self-hoster can deploy without cloning the repo at all — just
+the three files documented in `docker/README.md`
+(`docker-compose.yml`, `.env.example`, `inngest-init/*.sql`). Keep this
+folder's `docker-compose.yml` in sync with the root one on any
+infra-service change (ports, healthchecks, env vars) — the only
+intentional diff between them is `build: .` vs `image: ...`.
+
 Inside the full stack, `app` reaches `postgres`/`redis`/`inngest` by
 service name (Docker's internal DNS) — no `host.docker.internal` hack
 needed there, that workaround is `docker-compose.dev.yml`-only, for when

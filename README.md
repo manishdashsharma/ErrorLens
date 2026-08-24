@@ -54,8 +54,12 @@ into another.
 
 ## Getting Started
 
-See [INTEGRATION.md](./INTEGRATION.md) for the full walkthrough — deploy
-ErrorLens, create a project, and wire up your app with the
+Deploying your own instance? See [docker/README.md](./docker/README.md)
+to run ErrorLens from the prebuilt image — no cloning or building
+required, just a `docker-compose.yml` and a `.env` file.
+
+Then see [INTEGRATION.md](./INTEGRATION.md) for the full walkthrough —
+create a project and wire up your app with the
 [`errorlens-express`](https://www.npmjs.com/package/errorlens-express)
 SDK.
 
