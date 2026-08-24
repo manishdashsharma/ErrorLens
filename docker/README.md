@@ -51,7 +51,7 @@ curl -X PUT http://localhost:3000/api/inngest
 ## 5. Create your first project
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/projects \
+curl -X POST http://localhost:3000/v1/projects \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"name": "my-service"}'

@@ -6,8 +6,29 @@ it. Every step below has been run for real, not just described.
 
 ## 1. Deploy ErrorLens
 
-**On a VPS (production)** — `docker-compose.yml` runs the whole stack,
-including the app itself, in one command:
+**Fastest — prebuilt image, no clone required.** Every tagged release
+publishes to GHCR; grab the standalone bundle and run it directly:
+
+```bash
+mkdir errorlens && cd errorlens
+curl -O https://raw.githubusercontent.com/manishdashsharma/ErrorLens/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/manishdashsharma/ErrorLens/main/docker/.env.example
+mkdir inngest-init
+curl -o inngest-init/001-create-inngest-db.sql https://raw.githubusercontent.com/manishdashsharma/ErrorLens/main/docker/inngest-init/001-create-inngest-db.sql
+cp .env.example .env
+# fill in REDIS_PASSWORD, INNGEST_EVENT_KEY/INNGEST_SIGNING_KEY,
+# ADMIN_SECRET, and whichever of AI_API_KEY / GITHUB_TOKEN you want
+# enrichment for — see .env.example for what each one unlocks
+docker compose up -d
+curl -X PUT http://localhost:3000/api/inngest   # register the app with Inngest, one-time
+```
+
+See [docker/README.md](./docker/README.md) for the full walkthrough,
+updating, and pinning a specific version instead of `latest`.
+
+**Or build from source (VPS/production)** — clone the repo and
+`docker-compose.yml` runs the whole stack, including building the app
+image yourself, in one command:
 
 ```bash
 git clone https://github.com/manishdashsharma/errorlens.git
@@ -19,7 +40,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-That's it — Postgres, Redis, self-hosted Inngest, and the ErrorLens app
+Either way — Postgres, Redis, self-hosted Inngest, and the ErrorLens app
 all start together, migrations run automatically on container start, and
 the app is reachable on port 3000.
 
