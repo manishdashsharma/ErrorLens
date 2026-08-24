@@ -327,14 +327,27 @@ manual migration step.
 ## Published image: `docker/` is a standalone distribution, not a fourth way to run infra
 
 `.github/workflows/docker-publish.yml` builds the root `Dockerfile` on
-every `v*` tag push and publishes `linux/amd64` images to
+every `v*` tag push and publishes multi-arch
+(`linux/amd64`/`linux/arm64`) images to
 `ghcr.io/manishdashsharma/errorlens`, tagged `latest`, `<major>.<minor>`,
 and the exact version — then drafts a GitHub Release from the tag. This
 reuses the same `Dockerfile` as local `docker compose build`; it does not
-introduce a second build path. `linux/arm64` was tried first but the
-QEMU-emulated build hung on the free GitHub-hosted runner and hit the
-6-hour job timeout without erroring — amd64-only until self-hosted
-arm64 runners (or a faster emulation path) are worth the complexity.
+introduce a second build path.
+
+**Do not build arm64 via QEMU emulation on an x86 runner** — the first
+attempt did exactly this (`docker/setup-qemu-action` + a single
+`platforms: linux/amd64,linux/arm64` build) and it hung silently until
+GitHub's 6-hour job timeout killed it, with zero error output anywhere.
+The fix is a build matrix that runs the amd64 leg on `ubuntu-latest` and
+the arm64 leg on `ubuntu-24.04-arm` — GitHub's *native* arm64 hosted
+runner, real hardware, no emulation — each job pushing its image by
+digest, then a separate `merge` job combines both digests into one
+multi-arch manifest via `docker buildx imagetools create`. This is
+Docker's own documented pattern for multi-platform CI builds, not a
+custom workaround. If `ubuntu-24.04-arm` ever stops being available on
+this account/repo, fail fast and pick this back up — don't reach for
+QEMU as the fallback, that's the exact failure mode that cost 6 hours
+the first time.
 
 `docker/` is a self-contained copy of the same four-service stack from
 root `docker-compose.yml`, except the `app` service uses `image:
