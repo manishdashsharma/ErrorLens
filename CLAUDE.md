@@ -327,12 +327,14 @@ manual migration step.
 ## Published image: `docker/` is a standalone distribution, not a fourth way to run infra
 
 `.github/workflows/docker-publish.yml` builds the root `Dockerfile` on
-every `v*` tag push and publishes multi-arch
-(`linux/amd64`/`linux/arm64`) images to
+every `v*` tag push and publishes `linux/amd64` images to
 `ghcr.io/manishdashsharma/errorlens`, tagged `latest`, `<major>.<minor>`,
 and the exact version — then drafts a GitHub Release from the tag. This
 reuses the same `Dockerfile` as local `docker compose build`; it does not
-introduce a second build path.
+introduce a second build path. `linux/arm64` was tried first but the
+QEMU-emulated build hung on the free GitHub-hosted runner and hit the
+6-hour job timeout without erroring — amd64-only until self-hosted
+arm64 runners (or a faster emulation path) are worth the complexity.
 
 `docker/` is a self-contained copy of the same four-service stack from
 root `docker-compose.yml`, except the `app` service uses `image:
