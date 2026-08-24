@@ -9,8 +9,6 @@ Sentry/GlitchTip that doesn't just show you *what* broke — it tells you
 Self-hosted, own forever. No per-seat pricing, no vendor lock-in, your
 error data never leaves your infrastructure.
 
-> **Status**: under active development.
-
 ## Why ErrorLens
 
 Sentry/GlitchTip show you the stack trace and the occurrence count.
